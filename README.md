@@ -6,7 +6,8 @@ High-performance XDP/eBPF load balancer for NetFlow v5/v9, IPFIX, and sFlow traf
 The reason for creating this is that flow has some unique challenges that aren't easily addressed with standard load balancers. some of the things this addresses:
 - Flow collectors generally care more about "flows per second" than packets per second. This allows you to choose either.
 - This load balancer has the ability to intelligently rebalance when a collector hits certain thresholds.
-- Although, not ideal, this can gracefully degrade if the backend targets get more than the allocated flow by sampling packets. It does NOT add samole rates to individual flows.
+- Rebalances in a way that avoids a "thundering herd" problem.
+- Although, not ideal, this can gracefully degrade if the backend targets get more than the allocated flow by sampling packets. It does NOT add sample rates to individual flows.
 - Auto discovery of flow type (sFlow, Netflow, IPFIX) allows flow statistics tracking based on the protocol. 
 - If a flow moves from one collector to the other, a template must be sent for the ne collector to decode the flow. This can aintain a template cache and can send new templates on demand. this allows for seemless transitions without the backend pool having to share tempalate information.
 - Flow sequence number tracking allows users to understnd if flow data is being lost before getting to the collector. 
@@ -677,6 +678,9 @@ fload-balancer/
 ├── BENCHMARKS.md                # Performance benchmark results
 └── README.md                    # This file
 ```
+# Caveats
+
+This requires the collector to have an accessible TCP port. This provides a relible way to check the status of the collector process. ICMP Port Unreachable messages could work, but they are not guarenteed 
 
 ## License
 
