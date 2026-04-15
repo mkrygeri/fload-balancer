@@ -414,6 +414,28 @@ IPFIX        1462253    584901200
 
 When `web_ui.enabled: true`, an embedded dark-themed single-page application is served at the configured address (default `:8080`).
 
+### Screenshots
+
+**Overview** — Live metrics, backend distribution, and flow type breakdown:
+
+![Overview](docs/screenshots/overview.png)
+
+**Backends** — Per-backend detail with PPS, FPS, and sampling status:
+
+![Backends](docs/screenshots/backends.png)
+
+**Sessions** — Active sessions with flow type and backend assignment:
+
+![Sessions](docs/screenshots/sessions.png)
+
+**Sequences** — Per-source sequence tracking with gap and duplicate detection:
+
+![Sequences](docs/screenshots/sequences.png)
+
+**Templates** — Template cache statistics for NetFlow v9/IPFIX:
+
+![Templates](docs/screenshots/templates.png)
+
 ### Tabs
 
 | Tab | Content |
