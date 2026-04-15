@@ -1,0 +1,5 @@
+bin/
+*.o
+internal/ebpf/xdplb_bpf*.go
+internal/ebpf/xdplb_bpf*.o
+api/v1/*.pb.go

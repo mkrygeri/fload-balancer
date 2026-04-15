@@ -1,0 +1,71 @@
+# Load balancer configuration
+interface: eth0
+
+# Virtual IP that receives NetFlow/IPFIX/sFlow traffic
+vip_ip: "10.0.0.100"
+
+# UDP ports to load-balance
+vip_ports:
+  - 2055   # NetFlow v5/v9
+  - 4739   # IPFIX
+  - 6343   # sFlow
+  - 9995   # NetFlow alternate
+  - 9996   # NetFlow alternate
+
+# Backend collectors
+backends:
+  - ip: "10.0.1.10"
+    port: 2055
+    weight: 1
+    health_port: 8080
+  - ip: "10.0.1.11"
+    port: 2055
+    weight: 1
+    health_port: 8080
+  - ip: "10.0.1.12"
+    port: 2055
+    weight: 1
+    health_port: 8080
+
+# gRPC management interface
+grpc_addr: ":50051"
+
+# Session persistence timeout (seconds)
+session_timeout_sec: 300
+
+# Flow sequence tracking
+seq_tracking: true
+seq_window_size: 16
+
+# Health checking via TCP port
+health_check:
+  enabled: true
+  interval_sec: 10
+  timeout_sec: 3
+  retries: 3
+
+# Optional web dashboard
+web_ui:
+  enabled: true
+  addr: ":8080"
+
+# Automatic rebalancing and sampling
+rebalance:
+  enabled: true
+  # How often to assess backend load (seconds)
+  assessment_interval_sec: 10
+  # Number of consecutive assessments that must breach threshold before action
+  assessment_count: 3
+  # PPS threshold per backend that triggers session rebalancing
+  threshold_pps: 50000
+  # FPS threshold per backend that triggers session rebalancing (preferred over PPS when set)
+  # Falls back to PPS for flow types where flow count cannot be extracted (e.g. IPFIX, unknown)
+  threshold_fps: 0
+  # PPS threshold per backend that triggers packet sampling
+  sampling_threshold_pps: 100000
+  # FPS threshold per backend that triggers packet sampling (preferred over PPS when set)
+  sampling_threshold_fps: 0
+  # Sampling rate (1-in-N) when sampling is active
+  sampling_rate: 2
+  # Maximum sessions to move per rebalance event
+  max_sessions_to_move: 10

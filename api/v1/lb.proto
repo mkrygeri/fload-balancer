@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package api.v1;
+
+option go_package = "fload-balancer/api/v1";
+
+// LoadBalancerService manages the XDP-based NetFlow/IPFIX/sFlow load balancer.
+service LoadBalancerService {
+    // Backend management
+    rpc AddBackend(AddBackendRequest)       returns (AddBackendResponse);
+    rpc RemoveBackend(RemoveBackendRequest) returns (RemoveBackendResponse);
+    rpc ListBackends(ListBackendsRequest)   returns (ListBackendsResponse);
+
+    // Session management
+    rpc GetSessions(GetSessionsRequest)     returns (GetSessionsResponse);
+    rpc FlushSessions(FlushSessionsRequest) returns (FlushSessionsResponse);
+
+    // Metrics
+    rpc GetBackendStats(GetBackendStatsRequest)   returns (GetBackendStatsResponse);
+    rpc GetFlowTypeStats(GetFlowTypeStatsRequest) returns (GetFlowTypeStatsResponse);
+    rpc GetSequenceStats(GetSequenceStatsRequest) returns (GetSequenceStatsResponse);
+
+    // Configuration
+    rpc GetConfig(GetConfigRequest)       returns (GetConfigResponse);
+    rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+}
+
+// ---------- Backend messages ----------
+
+message BackendEntry {
+    uint32 index   = 1;
+    string ip      = 2;
+    uint32 port    = 3;  // 0 = keep original destination port
+    bool   active  = 4;
+    uint32 weight  = 5;
+}
+
+message AddBackendRequest {
+    string ip     = 1;
+    uint32 port   = 2;
+    uint32 weight = 3;
+}
+
+message AddBackendResponse {
+    uint32 index = 1;
+}
+
+message RemoveBackendRequest {
+    uint32 index = 1;
+}
+
+message RemoveBackendResponse {}
+
+message ListBackendsRequest {}
+
+message ListBackendsResponse {
+    repeated BackendEntry backends = 1;
+}
+
+// ---------- Session messages ----------
+
+message SessionEntry {
+    string src_ip       = 1;
+    string dst_ip       = 2;
+    uint32 src_port     = 3;
+    uint32 dst_port     = 4;
+    uint32 backend_idx  = 5;
+    string flow_type    = 6;
+    uint64 packets      = 7;
+    uint64 bytes        = 8;
+    uint64 last_seen_ns = 9;
+}
+
+message GetSessionsRequest {}
+
+message GetSessionsResponse {
+    repeated SessionEntry sessions = 1;
+}
+
+message FlushSessionsRequest {}
+
+message FlushSessionsResponse {
+    uint32 flushed = 1;
+}
+
+// ---------- Metrics messages ----------
+
+message BackendStatsEntry {
+    uint32 index      = 1;
+    string ip         = 2;
+    uint64 rx_packets = 3;
+    uint64 rx_bytes   = 4;
+}
+
+message GetBackendStatsRequest {}
+
+message GetBackendStatsResponse {
+    repeated BackendStatsEntry stats = 1;
+}
+
+message FlowTypeStatsEntry {
+    string flow_type = 1;
+    uint64 packets   = 2;
+    uint64 bytes     = 3;
+}
+
+message GetFlowTypeStatsRequest {}
+
+message GetFlowTypeStatsResponse {
+    repeated FlowTypeStatsEntry stats = 1;
+}
+
+message SequenceStatsEntry {
+    string src_ip         = 1;
+    uint32 src_port       = 2;
+    string flow_type      = 3;
+    uint32 expected_next  = 4;
+    uint32 last_seq       = 5;
+    uint64 total_received = 6;
+    uint64 gaps           = 7;
+    uint64 duplicates     = 8;
+    uint64 out_of_order   = 9;
+}
+
+message GetSequenceStatsRequest {}
+
+message GetSequenceStatsResponse {
+    repeated SequenceStatsEntry stats = 1;
+}
+
+// ---------- Configuration messages ----------
+
+message LBConfigMsg {
+    string vip_ip            = 1;
+    repeated uint32 vip_ports = 2;
+    bool   seq_tracking      = 3;
+    uint32 seq_window_size   = 4;
+    uint32 session_timeout_s = 5;
+    uint32 health_interval_s = 6;
+    uint32 health_timeout_s  = 7;
+}
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+    LBConfigMsg config = 1;
+}
+
+message UpdateConfigRequest {
+    LBConfigMsg config = 1;
+}
+
+message UpdateConfigResponse {}

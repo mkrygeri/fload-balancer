@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flow Load Balancer</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+    --text: #e0e0e0; --text-dim: #888; --accent: #4fc3f7;
+    --green: #66bb6a; --red: #ef5350; --orange: #ffa726; --purple: #ab47bc;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, monospace; background:var(--bg); color:var(--text); }
+  .container { max-width:1400px; margin:0 auto; padding:16px; }
+
+  header { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border); margin-bottom:20px; }
+  header h1 { font-size:1.3em; font-weight:600; color:var(--accent); }
+  header .meta { font-size:0.8em; color:var(--text-dim); }
+  .refresh-info { font-size:0.75em; color:var(--text-dim); }
+
+  .tabs { display:flex; gap:4px; margin-bottom:16px; }
+  .tab { padding:8px 16px; cursor:pointer; background:var(--surface); border:1px solid var(--border);
+         border-radius:6px 6px 0 0; font-size:0.85em; color:var(--text-dim); transition:all 0.15s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--border); color:var(--accent); border-bottom-color:var(--border); }
+
+  .panel { display:none; }
+  .panel.active { display:block; }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:20px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; }
+  .card .label { font-size:0.75em; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; }
+  .card .value { font-size:1.6em; font-weight:700; margin-top:4px; }
+  .card .value.accent { color:var(--accent); }
+  .card .value.green { color:var(--green); }
+  .card .value.orange { color:var(--orange); }
+
+  table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  th { background:var(--border); text-align:left; padding:10px 12px; font-size:0.75em; text-transform:uppercase;
+       letter-spacing:0.5px; color:var(--text-dim); font-weight:600; }
+  td { padding:8px 12px; font-size:0.85em; border-top:1px solid var(--border); }
+  tr:hover td { background:rgba(79,195,247,0.04); }
+
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.75em; font-weight:600; }
+  .badge-green { background:rgba(102,187,106,0.15); color:var(--green); }
+  .badge-red { background:rgba(239,83,80,0.15); color:var(--red); }
+  .badge-blue { background:rgba(79,195,247,0.15); color:var(--accent); }
+  .badge-purple { background:rgba(171,71,188,0.15); color:var(--purple); }
+  .badge-orange { background:rgba(255,167,38,0.15); color:var(--orange); }
+
+  .section-title { font-size:0.95em; font-weight:600; margin:20px 0 10px; color:var(--text); }
+  .empty { text-align:center; padding:40px; color:var(--text-dim); font-size:0.9em; }
+
+  .config-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px; }
+  .config-item { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 16px;
+                  display:flex; justify-content:space-between; align-items:center; }
+  .config-item .key { font-size:0.8em; color:var(--text-dim); }
+  .config-item .val { font-size:0.9em; font-weight:600; color:var(--accent); }
+
+  @media(max-width:768px) {
+    .cards { grid-template-columns:1fr 1fr; }
+    .config-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>&#9678; Flow Load Balancer</h1>
+    <div class="meta">
+      <span class="refresh-info">Auto-refresh: 3s</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="backends">Backends</div>
+    <div class="tab" data-tab="sessions">Sessions</div>
+    <div class="tab" data-tab="flowtypes">Flow Types</div>
+    <div class="tab" data-tab="sequences">Sequences</div>
+    <div class="tab" data-tab="templates">Templates</div>
+    <div class="tab" data-tab="config">Config</div>
+  </div>
+
+  <!-- Overview -->
+  <div id="overview" class="panel active">
+    <div class="cards" id="overview-cards"></div>
+    <div class="section-title">Backend Distribution</div>
+    <table id="overview-be-table"><thead><tr>
+      <th>Index</th><th>IP</th><th>Port</th><th>Status</th><th>Packets</th><th>Bytes</th><th>PPS</th><th>FPS</th><th>BPS</th><th>Sampling</th>
+    </tr></thead><tbody></tbody></table>
+    <div class="section-title" style="margin-top:16px">Flow Types</div>
+    <table id="overview-ft-table"><thead><tr>
+      <th>Protocol</th><th>Packets</th><th>Bytes</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <!-- Backends -->
+  <div id="backends" class="panel">
+    <table id="be-table"><thead><tr>
+      <th>Index</th><th>IP</th><th>Port</th><th>Weight</th><th>Status</th><th>Rx Packets</th><th>Rx Bytes</th><th>PPS</th><th>FPS</th><th>BPS</th><th>Sampling</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <!-- Sessions -->
+  <div id="sessions" class="panel">
+    <div class="cards" id="session-cards"></div>
+    <table id="sess-table"><thead><tr>
+      <th>Source</th><th>Destination</th><th>Backend</th><th>Flow Type</th><th>Packets</th><th>Bytes</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <!-- Flow Types -->
+  <div id="flowtypes" class="panel">
+    <table id="ft-table"><thead><tr>
+      <th>Protocol</th><th>Packets</th><th>Bytes</th><th>Share</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <!-- Sequences -->
+  <div id="sequences" class="panel">
+    <table id="seq-table"><thead><tr>
+      <th>Source</th><th>Flow Type</th><th>Received</th><th>Gaps</th><th>Duplicates</th><th>Out of Order</th><th>Last Seq</th><th>Expected</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <!-- Templates -->
+  <div id="templates" class="panel">
+    <div class="cards" id="template-cards"></div>
+  </div>
+
+  <!-- Config -->
+  <div id="config" class="panel">
+    <div class="config-grid" id="config-grid"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+// Tab switching
+$$('.tab').forEach(t => t.addEventListener('click', () => {
+  $$('.tab').forEach(x => x.classList.remove('active'));
+  $$('.panel').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  $(`#${t.dataset.tab}`).classList.add('active');
+}));
+
+function fmt(n) {
+  if (n === undefined || n === null) return '0';
+  return Number(n).toLocaleString();
+}
+
+function fmtBytes(b) {
+  if (!b) return '0 B';
+  const u = ['B','KB','MB','GB','TB'];
+  let i = 0;
+  let v = Number(b);
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return v.toFixed(i ? 1 : 0) + ' ' + u[i];
+}
+
+function fmtRate(n) {
+  if (!n || n < 0.1) return '0';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
+
+function fmtBps(b) {
+  if (!b || b < 0.1) return '0 bps';
+  const v = b * 8;
+  if (v >= 1e9) return (v/1e9).toFixed(1) + ' Gbps';
+  if (v >= 1e6) return (v/1e6).toFixed(1) + ' Mbps';
+  if (v >= 1e3) return (v/1e3).toFixed(1) + ' Kbps';
+  return v.toFixed(0) + ' bps';
+}
+
+function flowBadge(ft) {
+  const colors = {'NetFlow v5':'blue','NetFlow v9':'purple','IPFIX':'green','sFlow':'orange'};
+  const c = colors[ft] || 'blue';
+  return `<span class="badge badge-${c}">${ft}</span>`;
+}
+
+function setRows(tableId, rows) {
+  const tbody = $(`#${tableId} tbody`);
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="20" class="empty">No data</td></tr>'; return; }
+  tbody.innerHTML = rows.join('');
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
+}
+
+async function refresh() {
+  try {
+    // Overview
+    const ov = await fetchJSON('/api/overview');
+
+    $('#overview-cards').innerHTML = `
+      <div class="card"><div class="label">Total Packets</div><div class="value accent">${fmt(ov.total_packets)}</div></div>
+      <div class="card"><div class="label">Total Bytes</div><div class="value accent">${fmtBytes(ov.total_bytes)}</div></div>
+      <div class="card"><div class="label">Packets/sec</div><div class="value accent">${fmtRate(ov.total_pps)} pps</div></div>
+      <div class="card"><div class="label">Flows/sec</div><div class="value accent">${fmtRate(ov.total_fps)} fps</div></div>
+      <div class="card"><div class="label">Throughput</div><div class="value accent">${fmtBps(ov.total_bps)}</div></div>
+      <div class="card"><div class="label">Active Sessions</div><div class="value green">${fmt(ov.session_count)}</div></div>
+      <div class="card"><div class="label">Backends</div><div class="value orange">${ov.backends ? ov.backends.length : 0}</div></div>
+      <div class="card"><div class="label">Flow Types Seen</div><div class="value accent">${ov.flow_types ? ov.flow_types.length : 0}</div></div>
+    `;
+
+    // Overview backend table
+    setRows('overview-be-table', (ov.backends || []).map(b =>
+      `<tr><td>${b.index}</td><td>${b.ip}</td><td>${b.port || '—'}</td>
+       <td><span class="badge badge-green">active</span></td>
+       <td>${fmt(b.rx_packets)}</td><td>${fmtBytes(b.rx_bytes)}</td>
+       <td>${fmtRate(b.pps)} pps</td><td>${fmtRate(b.fps)} fps</td><td>${fmtBps(b.bps)}</td>
+       <td>${b.sampling_rate > 1 ? '<span class="badge badge-orange">1:'+b.sampling_rate+'</span>' : '<span class="badge badge-green">off</span>'}</td></tr>`));
+
+    setRows('overview-ft-table', (ov.flow_types || []).map(f =>
+      `<tr><td>${flowBadge(f.flow_type)}</td><td>${fmt(f.packets)}</td><td>${fmtBytes(f.bytes)}</td></tr>`));
+
+    // Config panel
+    if (ov.config) {
+      const c = ov.config;
+      const items = [
+        ['Interface', c.interface],
+        ['VIP IP', c.vip_ip],
+        ['VIP Ports', (c.vip_ports||[]).join(', ')],
+        ['Seq Tracking', c.seq_tracking ? 'Enabled' : 'Disabled'],
+        ['Seq Window', c.seq_window_size],
+        ['Session Timeout', c.session_timeout_sec + 's'],
+        ['Backends', c.num_backends],
+        ['Active Sessions', c.num_sessions],
+      ];
+      $('#config-grid').innerHTML = items.map(([k,v]) =>
+        `<div class="config-item"><span class="key">${k}</span><span class="val">${v}</span></div>`
+      ).join('');
+    }
+
+    // Backends panel
+    const bes = await fetchJSON('/api/backends');
+    setRows('be-table', (bes || []).map(b =>
+      `<tr><td>${b.index}</td><td>${b.ip}</td><td>${b.port || '—'}</td><td>${b.weight}</td>
+       <td><span class="badge badge-${b.active?'green':'red'}">${b.active?'active':'down'}</span></td>
+       <td>${fmt(b.rx_packets)}</td><td>${fmtBytes(b.rx_bytes)}</td>
+       <td>${fmtRate(b.pps)} pps</td><td>${fmtRate(b.fps)} fps</td><td>${fmtBps(b.bps)}</td>
+       <td>${b.sampling_rate > 1 ? '<span class="badge badge-orange">1:'+b.sampling_rate+'</span>' : '<span class="badge badge-green">off</span>'}</td></tr>`));
+
+    // Sessions panel
+    const sessions = await fetchJSON('/api/sessions');
+    $('#session-cards').innerHTML = `
+      <div class="card"><div class="label">Active Sessions</div><div class="value green">${fmt((sessions||[]).length)}</div></div>
+    `;
+    setRows('sess-table', (sessions || []).map(s =>
+      `<tr><td>${s.src_ip}:${s.src_port}</td><td>${s.dst_ip}:${s.dst_port}</td>
+       <td>${s.backend_idx}</td><td>${flowBadge(s.flow_type)}</td>
+       <td>${fmt(s.packets)}</td><td>${fmtBytes(s.bytes)}</td></tr>`));
+
+    // Flow types panel
+    const fts = await fetchJSON('/api/flow-stats');
+    const totalFtPkts = (fts || []).reduce((a,f) => a + Number(f.packets), 0);
+    setRows('ft-table', (fts || []).map(f => {
+      const pct = totalFtPkts ? ((Number(f.packets)/totalFtPkts)*100).toFixed(1) : '0';
+      return `<tr><td>${flowBadge(f.flow_type)}</td><td>${fmt(f.packets)}</td><td>${fmtBytes(f.bytes)}</td>
+              <td><div style="display:flex;align-items:center;gap:8px">
+                <div style="background:var(--border);border-radius:3px;height:8px;width:120px;overflow:hidden">
+                  <div style="background:var(--accent);height:100%;width:${pct}%"></div>
+                </div>${pct}%</div></td></tr>`;
+    }));
+
+    // Sequences panel
+    const seqs = await fetchJSON('/api/seq-stats');
+    setRows('seq-table', (seqs || []).map(s =>
+      `<tr><td>${s.src_ip}:${s.src_port}</td><td>${flowBadge(s.flow_type)}</td>
+       <td>${fmt(s.total_received)}</td>
+       <td style="color:${s.gaps?'var(--red)':'inherit'}">${fmt(s.gaps)}</td>
+       <td style="color:${s.duplicates?'var(--orange)':'inherit'}">${fmt(s.duplicates)}</td>
+       <td style="color:${s.out_of_order?'var(--orange)':'inherit'}">${fmt(s.out_of_order)}</td>
+       <td>${fmt(s.last_seq)}</td><td>${fmt(s.expected_next)}</td></tr>`));
+
+    // Templates panel
+    const tmpl = await fetchJSON('/api/template-stats');
+    $('#template-cards').innerHTML = `
+      <div class="card"><div class="label">Cached Templates</div><div class="value accent">${fmt(tmpl.TotalTemplates)}</div></div>
+      <div class="card"><div class="label">Observation Domains</div><div class="value purple">${fmt(tmpl.ObservationDomains)}</div></div>
+      <div class="card"><div class="label">Events Received</div><div class="value green">${fmt(tmpl.EventsReceived)}</div></div>
+    `;
+
+  } catch(e) {
+    console.error('refresh error:', e);
+  }
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

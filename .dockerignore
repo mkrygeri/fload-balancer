@@ -1,0 +1,5 @@
+# Ignore build context we don't need
+bin/
+*.md
+.git/
+.gitignore

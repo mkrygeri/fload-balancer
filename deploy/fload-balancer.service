@@ -1,0 +1,29 @@
+[Unit]
+Description=Flaod Balancer - XDP/eBPF NetFlow/IPFIX/sFlow Load Balancer
+Documentation=https://github.com/fload-balancer/fload-balancer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/lbserver -config /etc/fload-balancer/config.yaml
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+LimitMEMLOCK=infinity
+AmbientCapabilities=CAP_NET_ADMIN CAP_BPF CAP_NET_RAW CAP_SYS_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_BPF CAP_NET_RAW CAP_SYS_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/sys/fs/bpf
+PrivateTmp=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fload-balancer
+
+[Install]
+WantedBy=multi-user.target

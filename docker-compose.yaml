@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  fload-balancer:
+    build: .
+    image: fload-balancer:latest
+    container_name: fload-balancer
+    restart: unless-stopped
+    # XDP/BPF requires elevated privileges and host networking
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./config.yaml:/etc/fload-balancer/config.yaml:ro
+      # BPF filesystem must be available
+      - /sys/fs/bpf:/sys/fs/bpf
+    # Ports are exposed via host networking; listed here for documentation
+    # ports:
+    #   - "50051:50051"  # gRPC
+    #   - "8080:8080"    # Web UI
