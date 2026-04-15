@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -221,7 +220,7 @@ func applyConfig(mgr *bpf.Manager, cfg *config.Config) error {
 			return fmt.Errorf("backend[%d]: invalid IP %q", i, b.IP)
 		}
 		be := bpf.Backend{
-			IP:     binary.BigEndian.Uint32(ip),
+			IP:     bpf.IPToUint32(ip),
 			Port:   bpf.PortToNetwork(b.Port),
 			Active: 1,
 			Weight: b.Weight,

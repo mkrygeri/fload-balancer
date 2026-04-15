@@ -519,9 +519,9 @@ func (c *Cache) GetStats() Stats {
 	}
 }
 
-// Uint32ToIP converts a uint32 in network byte order to net.IP.
+// Uint32ToIP converts a BPF map uint32 back to net.IP.
 func Uint32ToIP(n uint32) net.IP {
 	ip := make(net.IP, 4)
-	binary.BigEndian.PutUint32(ip, n)
+	binary.NativeEndian.PutUint32(ip, n)
 	return ip
 }

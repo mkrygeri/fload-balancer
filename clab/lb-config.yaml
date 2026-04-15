@@ -1,0 +1,55 @@
+# Load balancer config for containerlab test environment
+interface: eth0
+
+vip_ip: "10.100.0.200"
+
+vip_ports:
+  - 2055   # NetFlow v5/v9
+  - 4739   # IPFIX
+  - 6343   # sFlow
+
+backends:
+  - ip: "10.100.0.51"
+    port: 2055
+    weight: 1
+    health_port: 8080
+  - ip: "10.100.0.52"
+    port: 2055
+    weight: 1
+    health_port: 8080
+  - ip: "10.100.0.53"
+    port: 2055
+    weight: 1
+    health_port: 8080
+  - ip: "10.100.0.54"
+    port: 2055
+    weight: 1
+    health_port: 8080
+
+grpc_addr: ":50051"
+
+session_timeout_sec: 300
+
+seq_tracking: true
+seq_window_size: 16
+
+health_check:
+  enabled: true
+  interval_sec: 5
+  timeout_sec: 2
+  retries: 2
+
+web_ui:
+  enabled: true
+  addr: ":8080"
+
+rebalance:
+  enabled: true
+  assessment_interval_sec: 10
+  assessment_count: 3
+  threshold_pps: 5000
+  threshold_fps: 0
+  sampling_threshold_pps: 10000
+  sampling_threshold_fps: 0
+  sampling_rate: 2
+  max_sessions_to_move: 5

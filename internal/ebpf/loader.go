@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"sync"
 
 	"github.com/cilium/ebpf"
@@ -106,19 +107,21 @@ type SeqState struct {
 	OutOfOrder    uint64
 }
 
-// IPToUint32 converts a net.IP to uint32 in network byte order.
+// IPToUint32 converts a net.IP to a uint32 suitable for BPF map storage.
+// The returned value, when stored in native byte order, produces the same
+// bytes as the IP address in a network packet (big-endian / network order).
 func IPToUint32(ip net.IP) uint32 {
 	ip = ip.To4()
 	if ip == nil {
 		return 0
 	}
-	return binary.BigEndian.Uint32(ip)
+	return binary.NativeEndian.Uint32(ip)
 }
 
-// Uint32ToIP converts a uint32 in network byte order to net.IP.
+// Uint32ToIP converts a BPF map uint32 back to net.IP.
 func Uint32ToIP(n uint32) net.IP {
 	ip := make(net.IP, 4)
-	binary.BigEndian.PutUint32(ip, n)
+	binary.NativeEndian.PutUint32(ip, n)
 	return ip
 }
 
@@ -130,6 +133,8 @@ func PortToNetwork(port uint16) uint16 {
 }
 
 // Load loads the compiled BPF objects and attaches to the given interface.
+// Set the XDP_MODE environment variable to "skb" or "generic" to force
+// generic/SKB mode (useful for veth interfaces in containerlab/docker).
 func Load(iface string, logger *slog.Logger) (*Manager, error) {
 	if logger == nil {
 		logger = slog.Default()
@@ -146,10 +151,18 @@ func Load(iface string, logger *slog.Logger) (*Manager, error) {
 		return nil, fmt.Errorf("interface %q: %w", iface, err)
 	}
 
-	xdpLink, err := link.AttachXDP(link.XDPOptions{
+	xdpOpts := link.XDPOptions{
 		Program:   objs.XdpLoadBalancer,
 		Interface: ifObj.Index,
-	})
+	}
+
+	xdpMode := os.Getenv("XDP_MODE")
+	if xdpMode == "skb" || xdpMode == "generic" {
+		xdpOpts.Flags = link.XDPGenericMode
+		logger.Info("using generic/SKB XDP mode")
+	}
+
+	xdpLink, err := link.AttachXDP(xdpOpts)
 	if err != nil {
 		objs.Close()
 		return nil, fmt.Errorf("attaching XDP to %s: %w", iface, err)
@@ -314,6 +327,7 @@ func (m *Manager) GetBackendStats(numBackends int) ([]BeStats, error) {
 		for _, cpu := range perCPU {
 			total.RxPackets += cpu.RxPackets
 			total.RxBytes += cpu.RxBytes
+			total.RxFlows += cpu.RxFlows
 		}
 		result[i] = total
 	}

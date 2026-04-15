@@ -167,9 +167,18 @@ struct {
 static __always_inline __u32 fnv1a_hash(__u32 a, __u32 b, __u32 c)
 {
     __u32 h = 2166136261u;
-    h ^= a; h *= 16777619u;
-    h ^= b; h *= 16777619u;
-    h ^= c; h *= 16777619u;
+    h ^= (a      ) & 0xff; h *= 16777619u;
+    h ^= (a >>  8) & 0xff; h *= 16777619u;
+    h ^= (a >> 16) & 0xff; h *= 16777619u;
+    h ^= (a >> 24) & 0xff; h *= 16777619u;
+    h ^= (b      ) & 0xff; h *= 16777619u;
+    h ^= (b >>  8) & 0xff; h *= 16777619u;
+    h ^= (b >> 16) & 0xff; h *= 16777619u;
+    h ^= (b >> 24) & 0xff; h *= 16777619u;
+    h ^= (c      ) & 0xff; h *= 16777619u;
+    h ^= (c >>  8) & 0xff; h *= 16777619u;
+    h ^= (c >> 16) & 0xff; h *= 16777619u;
+    h ^= (c >> 24) & 0xff; h *= 16777619u;
     return h;
 }
 
@@ -362,27 +371,31 @@ static __always_inline void update_seq_tracking(struct seq_state *st,
  */
 static __always_inline int v9_has_templates(void *payload, void *data_end)
 {
-    if (payload + 20 > data_end)
+    if (payload + 24 > data_end)
         return 0;
 
-    void *ptr = payload + 20;
+    __u16 fs_id  = bpf_ntohs(*(__u16 *)(payload + 20));
+    if (fs_id == 0 || fs_id == 1)
+        return 1;
 
-    #pragma unroll
-    for (int i = 0; i < MAX_FLOWSETS; i++) {
-        if (ptr + 4 > data_end)
-            break;
+    __u16 fs_len = bpf_ntohs(*(__u16 *)(payload + 22));
+    if (fs_len < 4 || fs_len > 1480)
+        return 0;
+    if (payload + 20 + fs_len + 4 > data_end)
+        return 0;
+    fs_id = bpf_ntohs(*(__u16 *)(payload + 20 + fs_len));
+    if (fs_id == 0 || fs_id == 1)
+        return 1;
 
-        __u16 fs_id  = bpf_ntohs(*(__u16 *)ptr);
-        __u16 fs_len = bpf_ntohs(*(__u16 *)(ptr + 2));
-
-        if (fs_id == 0 || fs_id == 1)
-            return 1;
-
-        if (fs_len < 4)
-            break;
-
-        ptr += fs_len;
-    }
+    __u16 fs_len2 = bpf_ntohs(*(__u16 *)(payload + 20 + fs_len + 2));
+    if (fs_len2 < 4 || fs_len2 > 1480)
+        return 0;
+    __u32 off3 = 20 + (__u32)fs_len + (__u32)fs_len2;
+    if (off3 > 1480 || payload + off3 + 4 > data_end)
+        return 0;
+    fs_id = bpf_ntohs(*(__u16 *)(payload + off3));
+    if (fs_id == 0 || fs_id == 1)
+        return 1;
 
     return 0;
 }
@@ -394,27 +407,31 @@ static __always_inline int v9_has_templates(void *payload, void *data_end)
  */
 static __always_inline int ipfix_has_templates(void *payload, void *data_end)
 {
-    if (payload + 16 > data_end)
+    if (payload + 20 > data_end)
         return 0;
 
-    void *ptr = payload + 16;
+    __u16 set_id  = bpf_ntohs(*(__u16 *)(payload + 16));
+    if (set_id == 2 || set_id == 3)
+        return 1;
 
-    #pragma unroll
-    for (int i = 0; i < MAX_FLOWSETS; i++) {
-        if (ptr + 4 > data_end)
-            break;
+    __u16 set_len = bpf_ntohs(*(__u16 *)(payload + 18));
+    if (set_len < 4 || set_len > 1480)
+        return 0;
+    if (payload + 16 + set_len + 4 > data_end)
+        return 0;
+    set_id = bpf_ntohs(*(__u16 *)(payload + 16 + set_len));
+    if (set_id == 2 || set_id == 3)
+        return 1;
 
-        __u16 set_id  = bpf_ntohs(*(__u16 *)ptr);
-        __u16 set_len = bpf_ntohs(*(__u16 *)(ptr + 2));
-
-        if (set_id == 2 || set_id == 3)
-            return 1;
-
-        if (set_len < 4)
-            break;
-
-        ptr += set_len;
-    }
+    __u16 set_len2 = bpf_ntohs(*(__u16 *)(payload + 16 + set_len + 2));
+    if (set_len2 < 4 || set_len2 > 1480)
+        return 0;
+    __u32 off3 = 16 + (__u32)set_len + (__u32)set_len2;
+    if (off3 > 1480 || payload + off3 + 4 > data_end)
+        return 0;
+    set_id = bpf_ntohs(*(__u16 *)(payload + off3));
+    if (set_id == 2 || set_id == 3)
+        return 1;
 
     return 0;
 }

@@ -1,0 +1,207 @@
+# Containerlab topology for fload-balancer testing
+#
+# 12 senders → load balancer (VIP 10.100.0.200) → 4 collectors
+#
+# Access points once running:
+#   Web UI:  http://10.100.0.100:8080  (or http://localhost:8080 via port map)
+#   gRPC:    10.100.0.100:50051        (or localhost:50051 via port map)
+#   lbctl:   docker exec clab-fload-lab-lb lbctl -addr localhost:50051 stats
+#
+# Prerequisites:
+#   make images    (builds all three container images)
+
+name: fload-lab
+
+mgmt:
+  network: fload-lab-net
+  ipv4-subnet: 10.100.0.0/24
+
+topology:
+  nodes:
+    # ── Load Balancer ──────────────────────────────────────────
+    lb:
+      kind: linux
+      image: fload-balancer:latest
+      mgmt-ipv4: 10.100.0.100
+      binds:
+        - lb-config.yaml:/etc/fload-balancer/config.yaml:ro
+        - startup-lb.sh:/startup-lb.sh:ro
+        - /sys/fs/bpf:/sys/fs/bpf
+      exec:
+        - ip addr add 10.100.0.200/32 dev eth0
+      entrypoint: /startup-lb.sh
+      env:
+        XDP_MODE: skb
+      ports:
+        - "18080:8080"
+        - "50051:50051"
+
+    # ── Collectors ─────────────────────────────────────────────
+    collector01:
+      kind: linux
+      image: fload-collector:latest
+      mgmt-ipv4: 10.100.0.51
+      env:
+        COLLECTOR_ID: "1"
+        UDP_PORT: "2055"
+        HEALTH_PORT: "8080"
+
+    collector02:
+      kind: linux
+      image: fload-collector:latest
+      mgmt-ipv4: 10.100.0.52
+      env:
+        COLLECTOR_ID: "2"
+        UDP_PORT: "2055"
+        HEALTH_PORT: "8080"
+
+    collector03:
+      kind: linux
+      image: fload-collector:latest
+      mgmt-ipv4: 10.100.0.53
+      env:
+        COLLECTOR_ID: "3"
+        UDP_PORT: "2055"
+        HEALTH_PORT: "8080"
+
+    collector04:
+      kind: linux
+      image: fload-collector:latest
+      mgmt-ipv4: 10.100.0.54
+      env:
+        COLLECTOR_ID: "4"
+        UDP_PORT: "2055"
+        HEALTH_PORT: "8080"
+
+    # ── Senders (12 hosts, mixed flow types) ───────────────────
+    sender01:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.11
+      env:
+        SENDER_ID: "1"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "50"
+        FLOW_TYPE: "netflow5"
+
+    sender02:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.12
+      env:
+        SENDER_ID: "2"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "75"
+        FLOW_TYPE: "netflow5"
+
+    sender03:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.13
+      env:
+        SENDER_ID: "3"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "40"
+        FLOW_TYPE: "netflow9"
+
+    sender04:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.14
+      env:
+        SENDER_ID: "4"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "60"
+        FLOW_TYPE: "netflow9"
+
+    sender05:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.15
+      env:
+        SENDER_ID: "5"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "6343"
+        RATE: "30"
+        FLOW_TYPE: "sflow"
+
+    sender06:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.16
+      env:
+        SENDER_ID: "6"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "6343"
+        RATE: "45"
+        FLOW_TYPE: "sflow"
+
+    sender07:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.17
+      env:
+        SENDER_ID: "7"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "80"
+        FLOW_TYPE: "mixed"
+
+    sender08:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.18
+      env:
+        SENDER_ID: "8"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "55"
+        FLOW_TYPE: "mixed"
+
+    sender09:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.19
+      env:
+        SENDER_ID: "9"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "65"
+        FLOW_TYPE: "netflow5"
+
+    sender10:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.20
+      env:
+        SENDER_ID: "10"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "70"
+        FLOW_TYPE: "netflow5"
+
+    sender11:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.21
+      env:
+        SENDER_ID: "11"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "50"
+        FLOW_TYPE: "mixed"
+
+    sender12:
+      kind: linux
+      image: fload-sender:latest
+      mgmt-ipv4: 10.100.0.22
+      env:
+        SENDER_ID: "12"
+        TARGET_IP: "10.100.0.200"
+        TARGET_PORT: "2055"
+        RATE: "35"
+        FLOW_TYPE: "netflow9"

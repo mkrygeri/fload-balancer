@@ -1,0 +1,86 @@
+---
+collector01:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.51
+collector02:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.52
+collector03:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.53
+collector04:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.54
+lb:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.100
+sender01:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.11
+sender02:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.12
+sender03:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.13
+sender04:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.14
+sender05:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.15
+sender06:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.16
+sender07:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.17
+sender08:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.18
+sender09:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.19
+sender10:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.20
+sender11:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.21
+sender12:
+    username: 
+    password: 
+    platform: linux
+    hostname: 10.100.0.22
